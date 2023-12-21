@@ -101,7 +101,7 @@ public class UserServiceImpl implements IUserService {
     @Override
     public void signUp(SignUpRequest signUpRequest) {
         Set<Role> roleSet = new HashSet<>();
-        if (signUpRequest.getRoleList() == null) {
+        if (signUpRequest.getRoleList() == null || signUpRequest.getRoleList().isEmpty() ) {
             roleSet.add(roleRepository.findByRoleName(RoleName.ROLE_USER).orElseThrow(() -> new RuntimeException("Không tìm thấy role")));
         } else {
             signUpRequest.getRoleList().forEach(s -> {

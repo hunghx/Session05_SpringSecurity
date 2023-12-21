@@ -1,6 +1,9 @@
 package ra.springsecurity.security.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,9 +21,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import ra.springsecurity.security.jwt.JwtAuthTokenFilter;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Configuration
 @EnableMethodSecurity(securedEnabled = true) // cho phép cấu hình phân quyền theo phương thức
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityConfig {
     private final PasswordEncoder passwordEncoder;
     private final UserDetailsService userDetailsService;
@@ -46,14 +53,22 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf->csrf.disable())
-                .exceptionHandling(cus->cus.authenticationEntryPoint(authenticationEntryPoint()))
+                .exceptionHandling(cus->cus.authenticationEntryPoint(authenticationEntryPoint()).accessDeniedHandler((request, response, accessDeniedException) -> {
+                    log.error("errr",accessDeniedException.getMessage());
+                    response.setStatus(403);
+                    response.setHeader("error","forbiden");
+                    Map<String ,String> map = new HashMap<>();
+                    map.put("message","Bạn ko có quyền tuy cập");
+                    new ObjectMapper().writeValue(response.getOutputStream(),map);
+                }))
                 .sessionManagement(session-> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(cus->cus.requestMatchers("/api/v1/public/**").permitAll() // công khai
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/pm/**").hasAnyRole("ADMIN","PM")
-                        .requestMatchers("/api/v1/user/**").hasAnyRole("ADMIN","PM","USER")
+//                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+//                        .requestMatchers("/api/v1/pm/**").hasAnyRole("ADMIN","PM")
+//                        .requestMatchers("/api/v1/user/**").hasAnyRole("ADMIN","PM","USER")
+                        .anyRequest().authenticated()
                 );
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(jwtAuthTokenFilter, UsernamePasswordAuthenticationFilter.class);
